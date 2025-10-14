@@ -3,17 +3,16 @@ import {
   createLoader,
   createParser,
   createSerializer,
-  type inferParserType,
   parseAsString,
-  parseAsStringLiteral,
+  type inferParserType,
   type UseQueryStatesKeysMap,
 } from 'nuqs'
 // End of third-party imports
 
 import {
+  DocsSearchResultType as PageType,
   type DocsSearchResult as Page,
   type DocsSearchResultSection as PageSection,
-  DocsSearchResultType as PageType,
 } from 'common'
 import { getProjectDetail } from 'data/projects/project-detail-query'
 import { DOCS_URL } from 'lib/constants'
@@ -26,15 +25,18 @@ export const NO_ORG_MARKER = 'no-org'
 export const formatMessage = (
   message: string,
   attachments: string[],
-  error: string | null | undefined
+  error: string | null | undefined,
+  dashboardLogUrl?: string
 ) => {
   const errorString = error != null ? `\nError: ${error}` : ''
-  if (attachments.length > 0) {
-    const attachmentsImg = attachments.map((url) => `\n${url}`)
-    return `${message}\n${attachmentsImg.join('')}${errorString}`
-  } else {
-    return `${message}${errorString}`
-  }
+
+  const attachmentLines = attachments.length > 0 ? attachments : []
+  const logLine = dashboardLogUrl ? [`Dashboard logs: ${dashboardLogUrl}`] : []
+
+  const extras = [...attachmentLines, ...logLine]
+  const extrasString = extras.length > 0 ? `\n${extras.join('\n')}` : ''
+
+  return `${message}${errorString}${extrasString}`
 }
 
 export function getPageIcon(page: Page) {

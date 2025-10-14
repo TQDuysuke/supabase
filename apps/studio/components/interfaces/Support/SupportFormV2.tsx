@@ -1,4 +1,4 @@
-import type { Dispatch, MouseEventHandler } from 'react'
+import { type Dispatch, type MouseEventHandler } from 'react'
 import type { SubmitHandler, UseFormReturn } from 'react-hook-form'
 // End of third-party imports
 
@@ -11,12 +11,13 @@ import { detectBrowser } from 'lib/helpers'
 import { useProfile } from 'lib/profile'
 import { DialogSectionSeparator, Form_Shadcn_, Separator } from 'ui'
 import {
-  CATEGORIES_WITHOUT_AFFECTED_SERVICES,
   AffectedServicesSelector,
+  CATEGORIES_WITHOUT_AFFECTED_SERVICES,
 } from './AffectedServicesSelector'
 import { AttachmentUploadDisplay, useAttachmentUpload } from './AttachmentUpload'
 import { CategoryAndSeverityInfo } from './CategoryAndSeverityInfo'
 import { ClientLibraryInfo } from './ClientLibraryInfo'
+import { DashboardLogsToggle } from './DashboardLogsToggle'
 import { MessageField } from './MessageField'
 import { OrganizationSelector } from './OrganizationSelector'
 import { ProjectAndPlanInfo } from './ProjectAndPlanInfo'
@@ -31,6 +32,7 @@ import {
   NO_ORG_MARKER,
   NO_PROJECT_MARKER,
 } from './SupportForm.utils'
+import { DASHBOARD_LOG_CATEGORIES, uploadDashboardLog } from './dashboard-logs'
 
 interface SupportFormV2Props {
   form: UseFormReturn<SupportFormValues>
@@ -70,9 +72,17 @@ export const SupportFormV2 = ({ form, initialError, state, dispatch }: SupportFo
     },
   })
 
-  const onSubmit: SubmitHandler<SupportFormValues> = async (values) => {
+  const onSubmit: SubmitHandler<SupportFormValues> = async (formValues) => {
     dispatch({ type: 'SUBMIT' })
-    const attachments = await attachmentUpload.createAttachments(projectRef)
+
+    const { attachDashboardLogs: formAttachDashboardLogs, ...values } = formValues
+    const attachDashboardLogs =
+      formAttachDashboardLogs && DASHBOARD_LOG_CATEGORIES.includes(values.category)
+
+    const [attachments, dashboardLogUrl] = await Promise.all([
+      attachmentUpload.createAttachments(projectRef),
+      attachDashboardLogs ? uploadDashboardLog(projectRef) : undefined,
+    ])
 
     const selectedLibrary = values.library
       ? CLIENT_LIBRARIES.find((library) => library.language === values.library)
@@ -89,7 +99,7 @@ export const SupportFormV2 = ({ form, initialError, state, dispatch }: SupportFo
         values.category === SupportCategories.PROBLEM && selectedLibrary !== undefined
           ? selectedLibrary.key
           : '',
-      message: formatMessage(values.message, attachments, initialError),
+      message: formatMessage(values.message, attachments, initialError, dashboardLogUrl),
       verified: true,
       tags: ['dashboard-support-form'],
       siteUrl: '',
@@ -159,6 +169,12 @@ export const SupportFormV2 = ({ form, initialError, state, dispatch }: SupportFo
         <DialogSectionSeparator />
 
         <div className="px-6 flex flex-col gap-y-8">
+          {DASHBOARD_LOG_CATEGORIES.includes(category) && (
+            <>
+              <DashboardLogsToggle form={form} />
+              <Separator />
+            </>
+          )}
           {SUPPORT_ACCESS_CATEGORIES.includes(category) && (
             <>
               <SupportAccessToggle form={form} />
